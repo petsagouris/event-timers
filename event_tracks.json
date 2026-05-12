@@ -1723,6 +1723,29 @@
             }
           ],
           "events": []
+        },
+        {
+          "name": "Starlit Weald: Garden of the Ancients",
+          "timeline_type": "real_time",
+          "base_time_calculator": "local_day_start",
+          "visible": true,
+          "height": 20,
+          "schedules": [
+            {
+              "name": "Shackles of the Ancients",
+              "offset": 1095,
+              "interval": 120,
+              "duration": 20,
+              "color": [
+                0.18,
+                0.78,
+                0.36,
+                1
+              ],
+              "copy_text": "[&BPwPAAA=]"
+            }
+          ],
+          "events": []
         }
       ]
     }
