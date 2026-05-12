@@ -76,8 +76,14 @@ fn load() {
     check_for_event_tracks_update();
     
     // Setup Quick Access icon
-    setup_quick_access();
-    
+    let show_quick_access_icon = {
+        let config = RUNTIME_CONFIG.lock();
+        config.show_quick_access_icon
+    };
+    if show_quick_access_icon {
+        setup_quick_access();
+    }
+
     register_keybind_with_string("Toggle Event Timers", toggle_window_keybind, "ALT+E")
         .revert_on_unload();
 
