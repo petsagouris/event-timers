@@ -2,7 +2,7 @@ use nexus::paths::get_addon_dir;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     fs,
     path::PathBuf,
 };
@@ -14,7 +14,7 @@ use crate::json_loader::{load_tracks_from_json, EventTrack};
 // working throughout the addon.
 pub use event_timers_core::config::{
     LabelColumnPosition, NotificationConfig, ReminderConfig, Settings, TextAlignment,
-    TimeRulerInterval, ToastPosition, TrackOverride, TrackVisualConfig, TrackedEventId,
+    TimeRulerInterval, ToastPosition, TrackVisualConfig, TrackedEventId,
     UserConfig,
 };
 
@@ -131,48 +131,18 @@ fn apply_user_overrides_to(runtime: &mut RuntimeConfig) {
 }
 
 pub fn extract_user_overrides() {
+    let (default_tracks, _) = load_tracks_from_json();
+
     let runtime = RUNTIME_CONFIG.lock();
     let mut user_cfg = USER_CONFIG.lock();
 
-    user_cfg.track_overrides.clear();
-    user_cfg.custom_tracks.clear();
-
-    let (default_tracks, _) = load_tracks_from_json();
-    let default_map: HashMap<String, &EventTrack> =
-        default_tracks.iter().map(|t| (t.name.clone(), t)).collect();
-
-    for track in &runtime.tracks {
-        if let Some(default_track) = default_map.get(&track.name) {
-            let mut override_data = TrackOverride::default();
-            let mut has_changes = false;
-
-            if track.visible != default_track.visible {
-                override_data.visible = Some(track.visible);
-                has_changes = true;
-            }
-
-            if (track.height - default_track.height).abs() > 0.1 {
-                override_data.height = Some(track.height);
-                has_changes = true;
-            }
-
-            for event in &track.events {
-                if !event.enabled {
-                    override_data.disabled_events.push(event.name.clone());
-                    has_changes = true;
-                }
-            }
-
-            if has_changes {
-                user_cfg
-                    .track_overrides
-                    .insert(track.name.clone(), override_data);
-            }
-        } else {
-            user_cfg.custom_tracks.push(track.clone());
-        }
-    }
-
+    let (track_overrides, custom_tracks) = event_timers_core::config::build_track_overrides(
+        &runtime.tracks,
+        &default_tracks,
+        &user_cfg.track_overrides,
+    );
+    user_cfg.track_overrides = track_overrides;
+    user_cfg.custom_tracks = custom_tracks;
     user_cfg.settings = runtime.settings.clone();
 }
 

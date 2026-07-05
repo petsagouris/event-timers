@@ -199,6 +199,56 @@ pub struct TrackOverride {
     pub visual: Option<TrackVisualConfig>,
 }
 
+/// Diff the live tracks against the default tracks, producing the
+/// per-track overrides worth persisting plus the custom (non-default)
+/// tracks. `previous_overrides` supplies the visual overrides: those are
+/// only editable by hand in the JSON, so they must survive the rebuild
+/// instead of being wiped on every save.
+pub fn build_track_overrides(
+    runtime_tracks: &[EventTrack],
+    default_tracks: &[EventTrack],
+    previous_overrides: &HashMap<String, TrackOverride>,
+) -> (HashMap<String, TrackOverride>, Vec<EventTrack>) {
+    let default_map: HashMap<&str, &EventTrack> = default_tracks
+        .iter()
+        .map(|t| (t.name.as_str(), t))
+        .collect();
+
+    let mut overrides = HashMap::new();
+    let mut custom_tracks = Vec::new();
+
+    for track in runtime_tracks {
+        let Some(default_track) = default_map.get(track.name.as_str()) else {
+            custom_tracks.push(track.clone());
+            continue;
+        };
+
+        let override_data = TrackOverride {
+            visible: (track.visible != default_track.visible).then_some(track.visible),
+            height: ((track.height - default_track.height).abs() > 0.1).then_some(track.height),
+            disabled_events: track
+                .events
+                .iter()
+                .filter(|event| !event.enabled)
+                .map(|event| event.name.clone())
+                .collect(),
+            visual: previous_overrides
+                .get(&track.name)
+                .and_then(|o| o.visual.clone()),
+        };
+
+        let is_empty = override_data.visible.is_none()
+            && override_data.height.is_none()
+            && override_data.disabled_events.is_empty()
+            && override_data.visual.is_none();
+        if !is_empty {
+            overrides.insert(track.name.clone(), override_data);
+        }
+    }
+
+    (overrides, custom_tracks)
+}
+
 // === User Configuration ===
 
 /// The persisted user configuration: track-level overrides plus all
