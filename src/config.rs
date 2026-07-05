@@ -22,54 +22,13 @@ const USER_CONFIG_FILENAME: &str = "user_config.json";
 
 // === Runtime Configuration ===
 
+/// Live state read and mutated by the UI every frame: the resolved tracks
+/// plus the shared Settings. Persisted through UserConfig on save.
 #[derive(Debug, Clone)]
 pub struct RuntimeConfig {
     pub tracks: Vec<EventTrack>,
     pub categories: Vec<String>,
-    pub category_visibility: HashMap<String, bool>,
-    pub show_main_window: bool,
-    pub is_window_locked: bool,
-    pub hide_background: bool,
-    pub show_time_ruler: bool,
-    pub show_scrollbar: bool,
-    pub timeline_width: f32,
-    pub view_range_seconds: f32,
-    pub current_time_position: f32,
-    pub show_category_headers: bool,
-    pub spacing_same_category: f32,
-    pub spacing_between_categories: f32,
-    pub category_order: Vec<String>,
-    pub global_track_background: [f32; 4],
-    pub global_track_padding: f32,
-    pub override_all_track_heights: bool,
-    pub global_track_height: f32,
-    pub draw_event_borders: bool,
-    pub event_border_color: [f32; 4],
-    pub event_border_thickness: f32,
-    pub category_header_alignment: TextAlignment,
-    pub category_header_padding: f32,
-    pub label_column_position: LabelColumnPosition,
-    pub label_column_width: f32,
-    pub label_column_show_category: bool,
-    pub label_column_show_track: bool,
-    pub label_column_text_size: f32,
-    pub label_column_bg_color: [f32; 4],
-    pub label_column_text_color: [f32; 4],
-    pub label_column_category_color: [f32; 4],
-    pub close_on_escape: bool,
-    pub copy_with_event_name: bool,
-    pub show_quick_access_icon: bool,
-    pub setup_onboarding_seen: bool,
-
-    // === Time Ruler Settings ===
-    pub time_ruler_interval: TimeRulerInterval,
-    pub time_ruler_show_current_time: bool,
-
-    // === Notification Settings ===
-    pub tracked_events: HashSet<TrackedEventId>,
-    pub favorite_events: HashSet<TrackedEventId>,
-    pub oneshot_events: HashSet<TrackedEventId>,
-    pub notification_config: NotificationConfig,
+    pub settings: Settings,
 }
 
 impl Default for RuntimeConfig {
@@ -78,46 +37,7 @@ impl Default for RuntimeConfig {
         Self {
             tracks,
             categories,
-            category_visibility: HashMap::new(),
-            show_main_window: false,
-            is_window_locked: false,
-            hide_background: false,
-            show_time_ruler: false,
-            show_scrollbar: true,
-            timeline_width: 800.0,
-            view_range_seconds: 3600.0,
-            current_time_position: 0.5,
-            show_category_headers: false,
-            spacing_same_category: 0.0,
-            spacing_between_categories: 0.0,
-            category_order: Vec::new(),
-            global_track_background: [0.2, 0.2, 0.2, 0.2],
-            global_track_padding: 0.0,
-            override_all_track_heights: false,
-            global_track_height: 40.0,
-            draw_event_borders: true,
-            event_border_color: [0.0, 0.0, 0.0, 1.0],
-            event_border_thickness: 1.0,
-            category_header_alignment: TextAlignment::Center,
-            category_header_padding: 0.0,
-            label_column_position: LabelColumnPosition::None,
-            label_column_width: 150.0,
-            label_column_show_category: false,
-            label_column_show_track: true,
-            label_column_text_size: 1.0,
-            label_column_bg_color: [0.0, 0.0, 0.0, 0.0],
-            label_column_text_color: [1.0, 1.0, 1.0, 1.0],
-            label_column_category_color: [0.8, 0.8, 0.2, 1.0],
-            close_on_escape: true,
-            copy_with_event_name: false,
-            show_quick_access_icon: true,
-            setup_onboarding_seen: false,
-            time_ruler_interval: TimeRulerInterval::default(),
-            time_ruler_show_current_time: false,
-            tracked_events: HashSet::new(),
-            favorite_events: HashSet::new(),
-            oneshot_events: HashSet::new(),
-            notification_config: NotificationConfig::default(),
+            settings: Settings::default(),
         }
     }
 }
@@ -197,46 +117,7 @@ pub fn apply_user_overrides() {
         runtime.tracks.extend(cleaned_custom_tracks);
 
         // Apply all user settings
-        runtime.category_visibility = settings.category_visibility;
-        runtime.show_main_window = settings.show_main_window;
-        runtime.is_window_locked = settings.is_window_locked;
-        runtime.hide_background = settings.hide_background;
-        runtime.show_time_ruler = settings.show_time_ruler;
-        runtime.show_scrollbar = settings.show_scrollbar;
-        runtime.timeline_width = settings.timeline_width;
-        runtime.view_range_seconds = settings.view_range_seconds;
-        runtime.current_time_position = settings.current_time_position;
-        runtime.show_category_headers = settings.show_category_headers;
-        runtime.spacing_same_category = settings.spacing_same_category;
-        runtime.spacing_between_categories = settings.spacing_between_categories;
-        runtime.category_order = settings.category_order;
-        runtime.global_track_background = settings.global_track_background;
-        runtime.global_track_padding = settings.global_track_padding;
-        runtime.override_all_track_heights = settings.override_all_track_heights;
-        runtime.global_track_height = settings.global_track_height;
-        runtime.draw_event_borders = settings.draw_event_borders;
-        runtime.event_border_color = settings.event_border_color;
-        runtime.event_border_thickness = settings.event_border_thickness;
-        runtime.category_header_alignment = settings.category_header_alignment;
-        runtime.category_header_padding = settings.category_header_padding;
-        runtime.label_column_position = settings.label_column_position;
-        runtime.label_column_width = settings.label_column_width;
-        runtime.label_column_show_category = settings.label_column_show_category;
-        runtime.label_column_show_track = settings.label_column_show_track;
-        runtime.label_column_text_size = settings.label_column_text_size;
-        runtime.label_column_bg_color = settings.label_column_bg_color;
-        runtime.label_column_text_color = settings.label_column_text_color;
-        runtime.label_column_category_color = settings.label_column_category_color;
-        runtime.close_on_escape = settings.close_on_escape;
-        runtime.copy_with_event_name = settings.copy_with_event_name;
-        runtime.show_quick_access_icon = settings.show_quick_access_icon;
-        runtime.time_ruler_interval = settings.time_ruler_interval;
-        runtime.time_ruler_show_current_time = settings.time_ruler_show_current_time;
-        runtime.tracked_events = settings.tracked_events;
-        runtime.favorite_events = settings.favorite_events;
-        runtime.oneshot_events = settings.oneshot_events;
-        runtime.notification_config = settings.notification_config;
-        runtime.setup_onboarding_seen = settings.setup_onboarding_seen;
+        runtime.settings = settings;
     } // runtime lock dropped here
 }
 
@@ -283,51 +164,7 @@ pub fn extract_user_overrides() {
         }
     }
 
-    // Exhaustive struct construction: the compiler guarantees no setting is
-    // forgotten here. Collapses to a single clone once RuntimeConfig embeds
-    // Settings directly.
-    user_cfg.settings = Settings {
-        category_visibility: runtime.category_visibility.clone(),
-        show_main_window: runtime.show_main_window,
-        is_window_locked: runtime.is_window_locked,
-        hide_background: runtime.hide_background,
-        show_time_ruler: runtime.show_time_ruler,
-        show_scrollbar: runtime.show_scrollbar,
-        timeline_width: runtime.timeline_width,
-        view_range_seconds: runtime.view_range_seconds,
-        current_time_position: runtime.current_time_position,
-        show_category_headers: runtime.show_category_headers,
-        spacing_same_category: runtime.spacing_same_category,
-        spacing_between_categories: runtime.spacing_between_categories,
-        category_order: runtime.category_order.clone(),
-        global_track_background: runtime.global_track_background,
-        global_track_padding: runtime.global_track_padding,
-        override_all_track_heights: runtime.override_all_track_heights,
-        global_track_height: runtime.global_track_height,
-        draw_event_borders: runtime.draw_event_borders,
-        event_border_color: runtime.event_border_color,
-        event_border_thickness: runtime.event_border_thickness,
-        category_header_alignment: runtime.category_header_alignment,
-        category_header_padding: runtime.category_header_padding,
-        label_column_position: runtime.label_column_position,
-        label_column_width: runtime.label_column_width,
-        label_column_show_category: runtime.label_column_show_category,
-        label_column_show_track: runtime.label_column_show_track,
-        label_column_text_size: runtime.label_column_text_size,
-        label_column_bg_color: runtime.label_column_bg_color,
-        label_column_text_color: runtime.label_column_text_color,
-        label_column_category_color: runtime.label_column_category_color,
-        close_on_escape: runtime.close_on_escape,
-        copy_with_event_name: runtime.copy_with_event_name,
-        show_quick_access_icon: runtime.show_quick_access_icon,
-        setup_onboarding_seen: runtime.setup_onboarding_seen,
-        time_ruler_interval: runtime.time_ruler_interval,
-        time_ruler_show_current_time: runtime.time_ruler_show_current_time,
-        tracked_events: runtime.tracked_events.clone(),
-        favorite_events: runtime.favorite_events.clone(),
-        oneshot_events: runtime.oneshot_events.clone(),
-        notification_config: runtime.notification_config.clone(),
-    };
+    user_cfg.settings = runtime.settings.clone();
 }
 
 // === File I/O ===
