@@ -4,6 +4,14 @@ use std::hash::Hash;
 
 use crate::tracks::EventTrack;
 
+// Serde note: every config struct carries container-level
+// `#[serde(default)]`, so a missing key falls back to the value from the
+// struct's `Default` impl. That impl is the single source of truth for
+// defaults. The only exceptions are two fields whose long-shipped missing-key
+// behavior intentionally differs from `Default` (see the field comments on
+// `show_main_window` and `draw_event_borders`); the golden tests in
+// tests/serde_format.rs pin both sides.
+
 // === Notification Types ===
 
 /// Identifies a specific event by track and event name
@@ -34,22 +42,18 @@ impl TrackedEventId {
 }
 
 /// Toast notification position anchor
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Default)]
 pub enum ToastPosition {
+    #[default]
     TopRight,
     TopLeft,
     BottomRight,
     BottomLeft,
 }
 
-impl Default for ToastPosition {
-    fn default() -> Self {
-        Self::TopRight
-    }
-}
-
 /// A single reminder configuration
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
 pub struct ReminderConfig {
     /// Display name for this reminder (e.g., "Heads up!", "Starting soon!")
     pub name: String,
@@ -58,12 +62,7 @@ pub struct ReminderConfig {
     /// Color for the reminder text
     pub text_color: [f32; 4],
     /// For ongoing reminders (minutes_before=0): interval in minutes between notifications
-    #[serde(default = "default_ongoing_interval")]
     pub ongoing_interval_minutes: u32,
-}
-
-fn default_ongoing_interval() -> u32 {
-    5
 }
 
 impl Default for ReminderConfig {
@@ -102,94 +101,28 @@ fn default_reminders() -> Vec<ReminderConfig> {
 
 /// Settings for the notification system
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
 pub struct NotificationConfig {
-    #[serde(default = "default_true")]
     pub toast_enabled: bool,
-
-    #[serde(default)]
     pub upcoming_panel_enabled: bool,
-
-    #[serde(default = "default_reminders")]
     pub reminders: Vec<ReminderConfig>,
-
-    #[serde(default = "default_toast_duration")]
     pub toast_duration_seconds: f32,
-
-    #[serde(default = "default_max_toasts")]
     pub max_visible_toasts: usize,
-
-    #[serde(default = "default_upcoming_panel_size")]
     pub upcoming_panel_size: [f32; 2],
-
-    #[serde(default = "default_max_upcoming")]
     pub max_upcoming_events: usize,
-
-    #[serde(default)]
     pub toast_position: ToastPosition,
-
-    #[serde(default = "default_toast_size")]
     pub toast_size: [f32; 2],
-
     /// X offset from corner (percentage of screen width, 0.0 to 1.0)
-    #[serde(default)]
     pub toast_offset_x: f32,
-
     /// Y offset from corner (percentage of screen height, 0.0 to 1.0)
-    #[serde(default)]
     pub toast_offset_y: f32,
-
-    #[serde(default = "default_toast_bg_color")]
     pub toast_bg_color: [f32; 4],
-
-    #[serde(default = "default_toast_text_scale")]
     pub toast_text_scale: f32,
-
-    #[serde(default = "default_toast_title_color")]
     pub toast_title_color: [f32; 4],
-
-    #[serde(default = "default_toast_time_color")]
     pub toast_time_color: [f32; 4],
-
-    #[serde(default = "default_toast_track_color")]
     pub toast_track_color: [f32; 4],
-
     /// Max minutes after start that a minutes_before=0 reminder can still show.
-    #[serde(default = "default_happening_now_grace_minutes")]
     pub happening_now_grace_minutes: u32,
-}
-
-fn default_toast_duration() -> f32 {
-    5.0
-}
-fn default_max_toasts() -> usize {
-    3
-}
-fn default_upcoming_panel_size() -> [f32; 2] {
-    [300.0, 200.0]
-}
-fn default_max_upcoming() -> usize {
-    10
-}
-fn default_toast_size() -> [f32; 2] {
-    [280.0, 80.0]
-}
-fn default_toast_bg_color() -> [f32; 4] {
-    [0.1, 0.1, 0.1, 0.95]
-}
-fn default_toast_text_scale() -> f32 {
-    1.2
-}
-fn default_toast_title_color() -> [f32; 4] {
-    [1.0, 0.8, 0.2, 1.0]
-}
-fn default_toast_time_color() -> [f32; 4] {
-    [0.5, 1.0, 0.5, 1.0]
-}
-fn default_toast_track_color() -> [f32; 4] {
-    [0.7, 0.7, 0.7, 1.0]
-}
-fn default_happening_now_grace_minutes() -> u32 {
-    10
 }
 
 impl Default for NotificationConfig {
@@ -203,62 +136,44 @@ impl Default for NotificationConfig {
             upcoming_panel_size: [300.0, 200.0],
             max_upcoming_events: 10,
             toast_position: ToastPosition::default(),
-            toast_size: default_toast_size(),
+            toast_size: [280.0, 80.0],
             toast_offset_x: 0.0,
             toast_offset_y: 0.0,
-            toast_bg_color: default_toast_bg_color(),
-            toast_text_scale: default_toast_text_scale(),
-            toast_title_color: default_toast_title_color(),
-            toast_time_color: default_toast_time_color(),
-            toast_track_color: default_toast_track_color(),
-            happening_now_grace_minutes: default_happening_now_grace_minutes(),
+            toast_bg_color: [0.1, 0.1, 0.1, 0.95],
+            toast_text_scale: 1.2,
+            toast_title_color: [1.0, 0.8, 0.2, 1.0],
+            toast_time_color: [0.5, 1.0, 0.5, 1.0],
+            toast_track_color: [0.7, 0.7, 0.7, 1.0],
+            happening_now_grace_minutes: 10,
         }
     }
 }
 
 // === Alignment Options ===
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Default)]
 pub enum TextAlignment {
     Left,
+    #[default]
     Center,
     Right,
 }
 
-impl Default for TextAlignment {
-    fn default() -> Self {
-        Self::Center
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Default)]
 pub enum LabelColumnPosition {
+    #[default]
     None,
     Left,
     Right,
 }
 
-impl Default for LabelColumnPosition {
-    fn default() -> Self {
-        Self::None
-    }
-}
-
 // === Visual Configuration ===
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
 pub struct TrackVisualConfig {
-    #[serde(default = "default_track_bg_color")]
     pub background_color: [f32; 4],
-    #[serde(default = "default_track_padding")]
     pub padding: f32,
-}
-
-fn default_track_bg_color() -> [f32; 4] {
-    [0.2, 0.2, 0.2, 1.0]
-}
-fn default_track_padding() -> f32 {
-    5.0
 }
 
 impl Default for TrackVisualConfig {
@@ -287,161 +202,77 @@ pub struct TrackOverride {
 // === User Configuration ===
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
 pub struct UserConfig {
-    #[serde(default)]
     pub track_overrides: HashMap<String, TrackOverride>,
-    #[serde(default)]
     pub custom_tracks: Vec<EventTrack>,
-    #[serde(default)]
     pub category_visibility: HashMap<String, bool>,
+    /// Missing key means `true` (upgrades from versions before this field
+    /// existed keep the window visible), but a fresh install defaults to
+    /// `false`. Long-shipped divergence — keep the field-level default.
     #[serde(default = "default_true")]
     pub show_main_window: bool,
-    #[serde(default)]
     pub is_window_locked: bool,
-    #[serde(default)]
     pub hide_background: bool,
-    #[serde(default = "default_true")]
     pub show_time_ruler: bool,
-    #[serde(default = "default_true")]
     pub show_scrollbar: bool,
-    #[serde(default = "default_timeline_width")]
     pub timeline_width: f32,
-    #[serde(default = "default_view_range")]
     pub view_range_seconds: f32,
-    #[serde(default = "default_time_position")]
     pub current_time_position: f32,
-    #[serde(default)]
     pub show_category_headers: bool,
-    #[serde(default = "default_spacing_same_category")]
     pub spacing_same_category: f32,
-    #[serde(default = "default_spacing_between_categories")]
     pub spacing_between_categories: f32,
-    #[serde(default)]
     pub category_order: Vec<String>,
-    #[serde(default = "default_global_track_bg")]
     pub global_track_background: [f32; 4],
-    #[serde(default)]
     pub global_track_padding: f32,
-    #[serde(default)]
     pub override_all_track_heights: bool,
-    #[serde(default = "default_height")]
     pub global_track_height: f32,
-    #[serde(default)]
+    /// Missing key means `false`, but a fresh install defaults to `true`.
+    /// Long-shipped divergence — keep the field-level default.
+    #[serde(default = "bool::default")]
     pub draw_event_borders: bool,
-    #[serde(default = "default_border_color")]
     pub event_border_color: [f32; 4],
-    #[serde(default = "default_border_thickness")]
     pub event_border_thickness: f32,
-    #[serde(default)]
     pub category_header_alignment: TextAlignment,
-    #[serde(default)]
     pub category_header_padding: f32,
-    #[serde(default)]
     pub label_column_position: LabelColumnPosition,
-    #[serde(default = "default_label_column_width")]
     pub label_column_width: f32,
-    #[serde(default)]
     pub label_column_show_category: bool,
-    #[serde(default = "default_true")]
     pub label_column_show_track: bool,
-    #[serde(default = "default_label_text_size")]
     pub label_column_text_size: f32,
-    #[serde(default)]
     pub label_column_bg_color: [f32; 4],
-    #[serde(default = "default_label_text_color")]
     pub label_column_text_color: [f32; 4],
-    #[serde(default = "default_label_category_color")]
     pub label_column_category_color: [f32; 4],
-    #[serde(default = "default_true")]
     pub close_on_escape: bool,
-    #[serde(default)]
     pub copy_with_event_name: bool,
-    #[serde(default = "default_true")]
     pub show_quick_access_icon: bool,
-    #[serde(default)]
     pub setup_onboarding_seen: bool,
 
     // === Time Ruler Settings ===
-    #[serde(default)]
     pub time_ruler_interval: TimeRulerInterval,
-    #[serde(default)]
     pub time_ruler_show_current_time: bool,
 
     // === Notification Settings ===
-    #[serde(default)]
     pub tracked_events: HashSet<TrackedEventId>,
-
-    #[serde(default)]
     pub favorite_events: HashSet<TrackedEventId>,
-
-    #[serde(default)]
     pub oneshot_events: HashSet<TrackedEventId>,
-
-    #[serde(default)]
     pub notification_config: NotificationConfig,
 }
-
-fn default_global_track_bg() -> [f32; 4] {
-    [0.2, 0.2, 0.2, 0.2]
-} // #33333333
-fn default_border_color() -> [f32; 4] {
-    [0.0, 0.0, 0.0, 1.0]
-} // #000000FF
-fn default_border_thickness() -> f32 {
-    1.0
-}
-/// Pub only until the defaults consolidation lands: the addon's
-/// `RuntimeConfig::default()` still references it.
-pub fn default_height() -> f32 {
-    40.0
-}
-fn default_label_column_width() -> f32 {
-    150.0
-}
-fn default_label_text_size() -> f32 {
-    1.0
-}
-fn default_label_text_color() -> [f32; 4] {
-    [1.0, 1.0, 1.0, 1.0]
-} // White
-fn default_label_category_color() -> [f32; 4] {
-    [0.8, 0.8, 0.2, 1.0]
-} // Yellow like default
 
 fn default_true() -> bool {
     true
 }
-fn default_timeline_width() -> f32 {
-    800.0
-}
-fn default_view_range() -> f32 {
-    3600.0
-}
-fn default_time_position() -> f32 {
-    0.5
-}
-fn default_spacing_same_category() -> f32 {
-    0.0
-}
-fn default_spacing_between_categories() -> f32 {
-    0.0
-}
 
 /// Time ruler marker spacing options (in minutes)
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TimeRulerInterval {
+    #[default]
     Minutes5 = 5,
     Minutes10 = 10,
     Minutes15 = 15,
     Minutes20 = 20,
     Minutes30 = 30,
     Minutes60 = 60,
-}
-
-impl Default for TimeRulerInterval {
-    fn default() -> Self {
-        Self::Minutes5
-    }
 }
 
 impl TimeRulerInterval {
@@ -493,7 +324,7 @@ impl Default for UserConfig {
             global_track_background: [0.2, 0.2, 0.2, 0.2],
             global_track_padding: 0.0,
             override_all_track_heights: false,
-            global_track_height: default_height(),
+            global_track_height: 40.0,
             draw_event_borders: true,
             event_border_color: [0.0, 0.0, 0.0, 1.0],
             event_border_thickness: 1.0,

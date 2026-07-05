@@ -13,9 +13,8 @@ use crate::json_loader::{load_tracks_from_json, EventTrack};
 // tests can run natively; re-export them so `crate::config::X` paths keep
 // working throughout the addon.
 pub use event_timers_core::config::{
-    default_height, LabelColumnPosition, NotificationConfig, ReminderConfig, TextAlignment,
-    TimeRulerInterval, ToastPosition, TrackOverride, TrackVisualConfig, TrackedEventId,
-    UserConfig,
+    LabelColumnPosition, NotificationConfig, ReminderConfig, TextAlignment, TimeRulerInterval,
+    ToastPosition, TrackOverride, TrackVisualConfig, TrackedEventId, UserConfig,
 };
 
 const USER_CONFIG_FILENAME: &str = "user_config.json";
@@ -94,7 +93,7 @@ impl Default for RuntimeConfig {
             global_track_background: [0.2, 0.2, 0.2, 0.2],
             global_track_padding: 0.0,
             override_all_track_heights: false,
-            global_track_height: default_height(),
+            global_track_height: 40.0,
             draw_event_borders: true,
             event_border_color: [0.0, 0.0, 0.0, 1.0],
             event_border_thickness: 1.0,
