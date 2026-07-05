@@ -107,16 +107,16 @@ fn populated_config_preserves_non_default_values() {
     let parsed: UserConfig = serde_json::from_str(&content).expect("fixture parses");
 
     // Spot-check values that exercise every section of the struct.
-    assert_eq!(parsed.timeline_width, 1024.0);
-    assert!(parsed.is_window_locked);
-    assert_eq!(parsed.category_order, ["Core Tyria", "Custom"]);
+    assert_eq!(parsed.settings.timeline_width, 1024.0);
+    assert!(parsed.settings.is_window_locked);
+    assert_eq!(parsed.settings.category_order, ["Core Tyria", "Custom"]);
     assert_eq!(parsed.custom_tracks.len(), 1);
     assert_eq!(parsed.custom_tracks[0].events.len(), 1);
-    assert_eq!(parsed.tracked_events.len(), 2);
-    assert_eq!(parsed.oneshot_events.len(), 1);
-    assert_eq!(parsed.favorite_events.len(), 1);
-    assert_eq!(parsed.notification_config.reminders.len(), 2);
-    assert_eq!(parsed.notification_config.max_visible_toasts, 5);
+    assert_eq!(parsed.settings.tracked_events.len(), 2);
+    assert_eq!(parsed.settings.oneshot_events.len(), 1);
+    assert_eq!(parsed.settings.favorite_events.len(), 1);
+    assert_eq!(parsed.settings.notification_config.reminders.len(), 2);
+    assert_eq!(parsed.settings.notification_config.max_visible_toasts, 5);
 
     let override_data = &parsed.track_overrides["World Bosses"];
     assert_eq!(override_data.visible, Some(false));
@@ -132,7 +132,7 @@ fn unknown_fields_are_ignored() {
     let parsed: Result<UserConfig, _> =
         serde_json::from_str(r#"{ "some_future_field": 42, "timeline_width": 900.0 }"#);
     let config = parsed.expect("configs from newer addon versions must still parse");
-    assert_eq!(config.timeline_width, 900.0);
+    assert_eq!(config.settings.timeline_width, 900.0);
 }
 
 #[test]

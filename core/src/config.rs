@@ -201,11 +201,25 @@ pub struct TrackOverride {
 
 // === User Configuration ===
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+/// The persisted user configuration: track-level overrides plus all
+/// user-tunable settings. `settings` is flattened, so the JSON file stays
+/// flat and byte-compatible with configs written before the split.
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct UserConfig {
     pub track_overrides: HashMap<String, TrackOverride>,
     pub custom_tracks: Vec<EventTrack>,
+    #[serde(flatten)]
+    pub settings: Settings,
+}
+
+/// Every user-tunable setting that is not a per-track override. This is the
+/// single struct shared by the persisted `UserConfig` and the live runtime
+/// state, so adding a setting means adding one field here (plus its default
+/// in the `Default` impl below).
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
+pub struct Settings {
     pub category_visibility: HashMap<String, bool>,
     /// Missing key means `true` (upgrades from versions before this field
     /// existed keep the window visible), but a fresh install defaults to
@@ -303,11 +317,9 @@ impl TimeRulerInterval {
     }
 }
 
-impl Default for UserConfig {
+impl Default for Settings {
     fn default() -> Self {
         Self {
-            track_overrides: HashMap::new(),
-            custom_tracks: Vec::new(),
             category_visibility: HashMap::new(),
             show_main_window: false,
             is_window_locked: false,
