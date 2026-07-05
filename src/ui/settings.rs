@@ -1019,12 +1019,7 @@ pub fn render_settings(ui: &Ui) {
     ui.text_colored([1.0, 0.4, 0.4, 1.0], "Reset");
     if ui.io().key_ctrl {
         if ui.button("Reset All Settings") {
-            if let Some(path) = crate::config::get_user_config_path() {
-                if std::fs::remove_file(&path).is_ok() {
-                    *crate::config::USER_CONFIG.lock() = crate::config::UserConfig::default();
-                    crate::config::apply_user_overrides();
-                }
-            }
+            crate::config::reset_all_settings(&mut config);
         }
     } else {
         ui.text_disabled("[Hold Ctrl] Reset All Settings");

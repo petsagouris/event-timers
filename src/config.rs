@@ -46,13 +46,27 @@ impl Default for RuntimeConfig {
 
 pub static RUNTIME_CONFIG: Lazy<Mutex<RuntimeConfig>> =
     Lazy::new(|| Mutex::new(RuntimeConfig::default()));
-pub static USER_CONFIG: Lazy<Mutex<UserConfig>> = Lazy::new(|| Mutex::new(UserConfig::default()));
+
+/// Staging area for load/save only. Between load_user_config and
+/// save_user_config its contents are stale: the live state is
+/// RUNTIME_CONFIG, and extract_user_overrides overwrites everything here
+/// at save time. Never read or write it from feature code — and when
+/// holding both locks, always take RUNTIME_CONFIG first.
+static USER_CONFIG: Lazy<Mutex<UserConfig>> = Lazy::new(|| Mutex::new(UserConfig::default()));
 pub static SELECTED_TRACK: Lazy<Mutex<Option<usize>>> = Lazy::new(|| Mutex::new(None));
 pub static SELECTED_EVENT: Lazy<Mutex<Option<usize>>> = Lazy::new(|| Mutex::new(None));
 
 // === Configuration Management ===
 
 pub fn apply_user_overrides() {
+    let mut runtime = RUNTIME_CONFIG.lock();
+    apply_user_overrides_to(&mut runtime);
+}
+
+/// Rebuild the given runtime state from USER_CONFIG plus the default
+/// tracks. Takes the runtime as a parameter so callers already holding the
+/// RUNTIME_CONFIG lock (the settings UI) don't deadlock re-locking it.
+fn apply_user_overrides_to(runtime: &mut RuntimeConfig) {
     // Load fresh tracks from JSON (outside locks)
     let (default_tracks, categories) = load_tracks_from_json();
 
@@ -87,38 +101,33 @@ pub fn apply_user_overrides() {
         )
     }; // user_cfg lock dropped here
 
-    // Scope 2: Update runtime config
-    {
-        let mut runtime = RUNTIME_CONFIG.lock();
+    // Set runtime tracks to defaults
+    runtime.tracks = default_tracks;
+    runtime.categories = categories;
 
-        // Set runtime tracks to defaults
-        runtime.tracks = default_tracks;
-        runtime.categories = categories;
+    // Apply user overrides to default tracks
+    for track in &mut runtime.tracks {
+        if let Some(override_data) = track_overrides.get(&track.name) {
+            if let Some(visible) = override_data.visible {
+                track.visible = visible;
+            }
+            if let Some(height) = override_data.height {
+                track.height = height;
+            }
 
-        // Apply user overrides to default tracks
-        for track in &mut runtime.tracks {
-            if let Some(override_data) = track_overrides.get(&track.name) {
-                if let Some(visible) = override_data.visible {
-                    track.visible = visible;
-                }
-                if let Some(height) = override_data.height {
-                    track.height = height;
-                }
-
-                for event in &mut track.events {
-                    if override_data.disabled_events.contains(&event.name) {
-                        event.enabled = false;
-                    }
+            for event in &mut track.events {
+                if override_data.disabled_events.contains(&event.name) {
+                    event.enabled = false;
                 }
             }
         }
+    }
 
-        // Add cleaned custom tracks
-        runtime.tracks.extend(cleaned_custom_tracks);
+    // Add cleaned custom tracks
+    runtime.tracks.extend(cleaned_custom_tracks);
 
-        // Apply all user settings
-        runtime.settings = settings;
-    } // runtime lock dropped here
+    // Apply all user settings
+    runtime.settings = settings;
 }
 
 pub fn extract_user_overrides() {
@@ -199,6 +208,18 @@ pub fn save_user_config() {
         }
         if let Ok(json_str) = serde_json::to_string_pretty(&*user_cfg) {
             fs::write(&path, json_str).ok();
+        }
+    }
+}
+
+/// Delete the config file and reset the given live state to defaults.
+/// Takes the runtime guard from the caller (the settings UI holds the
+/// RUNTIME_CONFIG lock while rendering); locking here would deadlock.
+pub fn reset_all_settings(runtime: &mut RuntimeConfig) {
+    if let Some(path) = get_user_config_path() {
+        if fs::remove_file(&path).is_ok() {
+            *USER_CONFIG.lock() = UserConfig::default();
+            apply_user_overrides_to(runtime);
         }
     }
 }
